@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
@@ -14,7 +15,9 @@ public static class MonoBehaviourExtensions {
             if ( component != null ) {
                 item.SetValue( behaviour, component );
             } else {
-                Debug.LogErrorFormat( "Unable to load component of type \"{0}\" for field \"{1}\" on \"{2}\"", item.FieldType.Name, item.Name, behaviour.name );
+                if ( CheckAttribute( behaviour, item, cType,
+                    string.Format( "Unable to load {0} on \"{1}\"", item.FieldType.Name, behaviour.name ) ) )
+                    return;
             }
         }
 
@@ -25,13 +28,30 @@ public static class MonoBehaviourExtensions {
             var component = behaviour.GetComponent( item.PropertyType );
             if ( component != null ) {
                 if ( !item.CanWrite ) {
-                    Debug.LogErrorFormat( "Unable to set the property \"{0}\" on \"{1}\"; Make sure it is writable", item.Name, behaviour.name );
+                    if ( CheckAttribute( behaviour, item, cType,
+                        string.Format( "Unable to set \"{0}\" on \"{1}\"", item.Name, behaviour.name ) ) )
+                        return;
                 } else {
                     item.SetValue( behaviour, component, null );
                 }
             } else {
-                Debug.LogErrorFormat( "Unable to load component of type \"{0}\" for property \"{1}\" on \"{2}\"", item.PropertyType.Name, item.Name, behaviour.name );
+                if ( CheckAttribute( behaviour, item, cType,
+                    string.Format( "Unable to load {0} on \"{1}\"", item.PropertyType.Name, behaviour.name ) ) )
+                    return;
             }
         }
+    }
+
+    private static bool CheckAttribute( Behaviour behaviour, MemberInfo item, Type cType, string defaultMessage ) {
+        var attribute = item.GetCustomAttributes( cType, true )[0] as ComponentAttribute;
+        if ( attribute.DisableComponentOnError ) {
+            Debug.LogErrorFormat( "{0}; Disabling \"{1}\" on \"{2}\"", defaultMessage, behaviour.GetType().Name, behaviour.name );
+            behaviour.enabled = false;
+            return true;
+        } else {
+            Debug.LogError( defaultMessage );
+        }
+
+        return false;
     }
 }
