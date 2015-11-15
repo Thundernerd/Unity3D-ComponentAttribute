@@ -5,6 +5,8 @@ An attribute that let's you auto-load components
 * Load components on awake (ExtendedBehaviour only)
 * Disable component on error (optional)
 
+*Credits go to [@ChevyRay](https://twitter.com/ChevyRay) for inspiring me to make this by this [tweet](https://twitter.com/ChevyRay/status/665673463856664576)*
+
 
 The way of ExtendedBehaviour
 ---------------------------
