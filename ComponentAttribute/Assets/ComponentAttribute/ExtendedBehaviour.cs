@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
@@ -6,9 +7,27 @@ using UnityEngine;
 public class ExtendedBehaviour : MonoBehaviour {
 
     protected virtual void Awake() {
+        var bType = GetType();
         var cType = typeof( ComponentAttribute );
-        var fields = GetType().GetFields( BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic )
-            .Where( f => f.GetCustomAttributes( cType, true ).Length == 1 ).ToList();
+        List<FieldInfo> fields;
+        List<PropertyInfo> properties;
+
+        if ( MonoBehaviourExtensions.TypeMembers.ContainsKey( bType ) ) {
+            var members = MonoBehaviourExtensions.TypeMembers[bType];
+            fields = members.Fields;
+            properties = members.Properties;
+        } else {
+            fields = GetType().GetFields( BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic )
+                .Where( f => f.GetCustomAttributes( cType, true ).Length == 1 ).ToList();
+            properties = GetType().GetProperties( BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic )
+                .Where( p => p.GetCustomAttributes( cType, true ).Length == 1 ).ToList();
+
+            MonoBehaviourExtensions.TypeMembers.Add( bType,
+                new MonoBehaviourExtensions.Members() {
+                    Fields = fields,
+                    Properties = properties
+                } );
+        }
 
         foreach ( var item in fields ) {
             var component = GetComponent( item.FieldType );
@@ -20,9 +39,6 @@ public class ExtendedBehaviour : MonoBehaviour {
                     return;
             }
         }
-
-        var properties = GetType().GetProperties( BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic )
-            .Where( p => p.GetCustomAttributes( cType, true ).Length == 1 ).ToList();
 
         foreach ( var item in properties ) {
             var component = GetComponent( item.PropertyType );

@@ -1,14 +1,39 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
 public static class MonoBehaviourExtensions {
 
+    public class Members {
+        public List<FieldInfo> Fields;
+        public List<PropertyInfo> Properties;
+    }
+
+    public static Dictionary<Type, Members> TypeMembers = new Dictionary<Type, Members>();
+
     public static void LoadComponents( this MonoBehaviour behaviour ) {
+        var bType = behaviour.GetType();
         var cType = typeof( ComponentAttribute );
-        var fields = behaviour.GetType().GetFields( BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic )
-            .Where( f => f.GetCustomAttributes( cType, true ).Length == 1 ).ToList();
+        List<FieldInfo> fields;
+        List<PropertyInfo> properties;
+
+        if ( TypeMembers.ContainsKey( bType ) ) {
+            var members = TypeMembers[bType];
+            fields = members.Fields;
+            properties = members.Properties;
+        } else {
+            fields = behaviour.GetType().GetFields( BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic )
+                .Where( f => f.GetCustomAttributes( cType, true ).Length == 1 ).ToList();
+            properties = behaviour.GetType().GetProperties( BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic )
+                .Where( p => p.GetCustomAttributes( cType, true ).Length == 1 ).ToList();
+
+            TypeMembers.Add( bType, new Members() {
+                Fields = fields,
+                Properties = properties
+            } );
+        }
 
         foreach ( var item in fields ) {
             var component = behaviour.GetComponent( item.FieldType );
@@ -20,9 +45,6 @@ public static class MonoBehaviourExtensions {
                     return;
             }
         }
-
-        var properties = behaviour.GetType().GetProperties( BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic )
-            .Where( p => p.GetCustomAttributes( cType, true ).Length == 1 ).ToList();
 
         foreach ( var item in properties ) {
             var component = behaviour.GetComponent( item.PropertyType );
