@@ -9,8 +9,11 @@ public class ExtensionTest : MonoBehaviour {
     protected Light Light { get { return specialLight; } }
     private Light specialLight;
 
-    [Component( true )]
+    [Component( true, false )]
     public BoxCollider2D BoxCollider { get; set; }
+
+    [Component( false, true )]
+    private Camera camera;
 
     void Start() {
         // You have to call LoadComponents with this. for it to work

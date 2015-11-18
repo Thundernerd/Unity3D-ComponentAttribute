@@ -9,11 +9,14 @@ public class DerivedTest : ExtendedBehaviour {
     protected Light Light { get { return specialLight; } }
     private Light specialLight;
 
-    [Component( true )]
+    [Component( true, false )]
     public BoxCollider2D BoxCollider { get; set; }
 
-    void Start() {
+    [Component( false, true )]
+    private Camera camera;
 
+    public override void Start() {
+        base.Start();
     }
 
     void Update() {
