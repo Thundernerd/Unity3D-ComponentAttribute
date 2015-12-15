@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
+#if UNITY_5_3
+using UnityEngine.SceneManagement;
+#endif
 
 [AttributeUsage( AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false )]
 sealed class ComponentAttribute : Attribute {
@@ -20,11 +23,68 @@ sealed class ComponentAttribute : Attribute {
         DisableComponentOnError = disableComponentOnError;
     }
 
+    #region Custom Types
     private struct Container {
         public Type Type;
         public List<FieldInfo> Fields;
         public List<PropertyInfo> Properties;
     }
+
+    private class ComponentLoader : MonoBehaviour {
+
+        private static GameObject loader;
+
+        public static void Inject( EventHandler handler ) {
+            loader = new GameObject( "ComponentLoader" );
+            loader.AddComponent<ComponentLoader>().OnSceneLoaded = handler;
+            loader.hideFlags = HideFlags.HideInHierarchy;
+            DontDestroyOnLoad( loader );
+        }
+
+        private event EventHandler OnSceneLoaded;
+
+#if UNITY_5_3
+        private int previousCount = 0;
+        private int previousLevel = -1;
+        private string previousLevelName = "";
+
+        public void Update() {
+            var activeLevel = SceneManager.GetActiveScene();
+            var currentLevel = activeLevel.buildIndex;
+            var currentLevelName = activeLevel.name;
+            var currentCount = SceneManager.sceneCount;
+
+            if ( previousCount != currentCount || currentLevel != previousLevel || currentLevelName != previousLevelName ) {
+                if ( OnSceneLoaded != null ) {
+                    OnSceneLoaded( null, null );
+                }
+            }
+
+            previousCount = currentCount;
+            previousLevel = currentLevel;
+            previousLevelName = currentLevelName;
+        }
+#else
+        private int previousLevel = -1;
+        private string previousLevelName = "";
+
+        public void Update() {
+            var currentLevel = Application.loadedLevel;
+            var currentLevelName = Application.loadedLevelName;
+
+            if ( currentLevel != previousLevel || currentLevelName != previousLevelName ) {
+                if ( OnSceneLoaded != null ) {
+                    OnSceneLoaded( null, null );
+                }
+            }
+        
+            previousLevel = currentLevel;
+            previousLevelName = currentLevelName;
+        }
+#endif
+
+    }
+#endregion
 
     private const string MISSING = "Component Loader: Unable to load {0} on {1}";
     private const string MISSING_ADD = "Component Loader: Unable to load {0}, adding it on {1}";
@@ -32,13 +92,17 @@ sealed class ComponentAttribute : Attribute {
     private const string NO_WRITE = "Component Loader: Unable to write {0} on {1}";
     private const string NO_WRITE_ERROR = "Component Loader: Unable to write {0} on {1}, disabling it on {2}";
 
+    private static List<Container> containers;
+
     [RuntimeInitializeOnLoadMethod]
-    private static void Execute() {
+    private static void Initialize() {
+        ComponentLoader.Inject( OnLevelLoaded );
+
         var type = typeof( ComponentAttribute );
         var assembly = type.Assembly;
         var types = assembly.GetTypes();
 
-        var found = new List<Container>();
+        containers = new List<Container>();
         var flags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
 
         foreach ( var item in types ) {
@@ -49,15 +113,19 @@ sealed class ComponentAttribute : Attribute {
             properties.Sort( ( a, b ) => a.Name.CompareTo( b.Name ) );
 
             if ( fields.Count > 0 || properties.Count > 0 ) {
-                found.Add( new Container() {
+                containers.Add( new Container() {
                     Type = item,
                     Fields = fields,
                     Properties = properties
                 } );
             }
         }
+    }
 
-        foreach ( var container in found ) {
+    private static void OnLevelLoaded( object sender, EventArgs e ) {
+        var type = typeof( ComponentAttribute );
+
+        foreach ( var container in containers ) {
             var objects = GameObject.FindObjectsOfType( container.Type );
 
             foreach ( var obj in objects ) {
