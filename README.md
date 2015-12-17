@@ -8,19 +8,6 @@ An attribute that let's you auto-load components
 *Credits go to [@ChevyRay](https://twitter.com/ChevyRay) for inspiring me to make this by this [tweet](https://twitter.com/ChevyRay/status/665673463856664576)*
 
 
-The way of ExtendedBehaviour
----------------------------
-You can derive your custom behaviour from the ExtendedBehaviour class.
-
-The only thing left to do is add the component attribute to fields or properties and you are ready to go.
-
-![ExtendedBehaviour](http://puu.sh/lmyDs/ebeb03e5ad.png)
-
-The downsides of using this way are (in my opinion)
-
-1. You have to make your custom behaviour inherit from ExtendedBehaviour.
-2. If you want to use Awake() you have to override it instead of the standard definition.
-
 The way of this.LoadComponents()
 --------------------------------
 Call *this.LoadComponents()* In the Start() or Awake() (or wherever you want to put it, really).

@@ -72,7 +72,7 @@ public static class MonoBehaviourExtensions {
             var component = behaviour.GetComponent( item.PropertyType );
             if ( component == null ) {
                 if ( attribute.AddComponentIfMissing ) {
-                    Debug.LogWarningFormat( component, MISSING_ADD, item.PropertyType.Name, bType.Name, behaviour.name );
+                    Debug.LogWarningFormat( component, MISSING_ADD, item.PropertyType.Name, behaviour.name );
                     component = behaviour.gameObject.AddComponent( item.PropertyType );
                 } else if ( attribute.DisableComponentOnError ) {
                     Debug.LogErrorFormat( component, MISSING_ERROR, item.PropertyType.Name, bType.Name, behaviour.name );
