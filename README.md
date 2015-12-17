@@ -2,7 +2,7 @@
 An attribute that let's you auto-load components
 
 * Works on fields and properties
-* Load components on awake, start, enable, whenever you want really
+* Load components on awake, start, or enable
 * Disable component on error (optional)
 
 *Credits go to [@ChevyRay](https://twitter.com/ChevyRay) for inspiring me to make this by this [tweet](https://twitter.com/ChevyRay/status/665673463856664576)*
