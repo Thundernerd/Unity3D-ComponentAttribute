@@ -20,7 +20,7 @@ public class FieldsExample : MonoBehaviour {
 
     // Use this for initialization
     void Start () {
-	
+        this.LoadComponents();
 	}
 	
 	// Update is called once per frame

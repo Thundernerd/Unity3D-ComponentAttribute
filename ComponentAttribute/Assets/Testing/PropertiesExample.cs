@@ -21,12 +21,12 @@ public class PropertiesExample : MonoBehaviour {
     private TerrainCollider privateTerrain;
 
     // Use this for initialization
-    void Start () {
-	
-	}
-	
-	// Update is called once per frame
-	void Update () {
-	
-	}
+    void Start() {
+        this.LoadComponents();
+    }
+
+    // Update is called once per frame
+    void Update() {
+
+    }
 }
