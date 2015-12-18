@@ -77,7 +77,7 @@ namespace CA {
 
 public static class CAExtensions {
 
-    public static Dictionary<Type, List<MemberInfo>> TypeMembers = new Dictionary<Type, List<MemberInfo>>();
+    private static Dictionary<Type, List<MemberInfo>> TypeMembers = new Dictionary<Type, List<MemberInfo>>();
 
     private const string MISSING = "Component Loader: Unable to load {0} on {1}";
     private const string MISSING_ADD = "Component Loader: Unable to load {0}, adding it on {1}";
@@ -86,15 +86,20 @@ public static class CAExtensions {
     private const string NO_WRITE_ERROR = "Component Loader: Unable to write {0} on {1}, disabling it on {2}";
 
     public static void LoadComponents( this MonoBehaviour behaviour ) {
+        var bGameObject = behaviour.gameObject;
         var bType = behaviour.GetType();
         var cType = typeof( ComponentAttribute );
+        var mType = typeof( MonoBehaviour );
         List<MemberInfo> members;
 
         if ( TypeMembers.ContainsKey( bType ) ) {
             members = TypeMembers[bType];
         } else {
             members = bType.GetMembers( BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic )
-                .Where( m => m.GetCustomAttributes( cType, true ).Length == 1 ).ToList();
+                .Where( m =>
+                    m.GetMemberType().IsSubclassOf( mType )
+                    && m.GetCustomAttributes( cType, true ).Length == 1 ).ToList();
+
             members.OrderBy( m => m.MemberType ).ThenBy( m => m.Name );
             TypeMembers.Add( bType, members );
         }
@@ -106,14 +111,14 @@ public static class CAExtensions {
             var component = behaviour.GetComponent( memberType );
             if ( component == null ) {
                 if ( attribute.AddComponentIfMissing ) {
-                    Debug.LogWarningFormat( component, MISSING_ADD, memberType.Name, behaviour.name );
+                    Debug.LogWarningFormat( bGameObject, MISSING_ADD, memberType.Name, behaviour.name );
                     component = behaviour.gameObject.AddComponent( memberType );
                 } else if ( attribute.DisableComponentOnError ) {
-                    Debug.LogErrorFormat( component, MISSING_ERROR, memberType.Name, bType.Name, behaviour.name );
+                    Debug.LogErrorFormat( bGameObject, MISSING_ERROR, memberType.Name, bType.Name, behaviour.name );
                     behaviour.enabled = false;
                     return;
                 } else {
-                    Debug.LogWarningFormat( component, MISSING, memberType.Name, behaviour.name );
+                    Debug.LogWarningFormat( bGameObject, MISSING, memberType.Name, behaviour.name );
                 }
 
                 if ( component != null ) {
@@ -121,10 +126,10 @@ public static class CAExtensions {
                         item.SetValue( behaviour, component );
                     } else {
                         if ( attribute.DisableComponentOnError ) {
-                            Debug.LogErrorFormat( component, NO_WRITE_ERROR, item.Name, behaviour.name );
+                            Debug.LogErrorFormat( bGameObject, NO_WRITE_ERROR, item.Name, behaviour.name );
                             behaviour.enabled = false;
                         } else {
-                            Debug.LogErrorFormat( component, NO_WRITE, item.Name, behaviour.name );
+                            Debug.LogErrorFormat( bGameObject, NO_WRITE, item.Name, behaviour.name );
                         }
                     }
                 }
@@ -133,10 +138,10 @@ public static class CAExtensions {
                     item.SetValue( behaviour, component );
                 } else {
                     if ( attribute.DisableComponentOnError ) {
-                        Debug.LogErrorFormat( component, NO_WRITE_ERROR, item.Name, behaviour.name );
+                        Debug.LogErrorFormat( bGameObject, NO_WRITE_ERROR, item.Name, behaviour.name );
                         behaviour.enabled = false;
                     } else {
-                        Debug.LogErrorFormat( component, NO_WRITE, item.Name, behaviour.name );
+                        Debug.LogErrorFormat( bGameObject, NO_WRITE, item.Name, behaviour.name );
                     }
                 }
             }
