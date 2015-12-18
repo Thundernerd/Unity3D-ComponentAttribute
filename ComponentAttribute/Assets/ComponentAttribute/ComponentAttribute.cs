@@ -3,15 +3,81 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
+using CA;
 
-public static class MonoBehaviourExtensions {
+namespace CA {
+    public static class MemberInfoExtensions {
 
-    public class Members {
-        public List<FieldInfo> Fields;
-        public List<PropertyInfo> Properties;
+        public static bool CanWrite( this MemberInfo info ) {
+            switch ( info.MemberType ) {
+                case MemberTypes.Field:
+                    return true;
+                case MemberTypes.Property:
+                    var p = ( info as PropertyInfo );
+                    return p.CanWrite;
+                case MemberTypes.Constructor:
+                case MemberTypes.Method:
+                case MemberTypes.Event:
+                case MemberTypes.TypeInfo:
+                case MemberTypes.Custom:
+                case MemberTypes.NestedType:
+                case MemberTypes.All:
+                default:
+                    return false;
+            }
+        }
+
+        public static Type GetMemberType( this MemberInfo info ) {
+            switch ( info.MemberType ) {
+                case MemberTypes.Event:
+                    var e = info as EventInfo;
+                    return e.EventHandlerType;
+                case MemberTypes.Field:
+                    var f = info as FieldInfo;
+                    return f.FieldType;
+                case MemberTypes.Method:
+                    var m = info as MethodInfo;
+                    return m.ReturnType;
+                case MemberTypes.Property:
+                    var p = info as PropertyInfo;
+                    return p.PropertyType;
+                case MemberTypes.Constructor:
+                case MemberTypes.TypeInfo:
+                case MemberTypes.Custom:
+                case MemberTypes.NestedType:
+                case MemberTypes.All:
+                default:
+                    return null;
+            }
+        }
+
+        public static void SetValue( this MemberInfo info, object obj, object value ) {
+            switch ( info.MemberType ) {
+                case MemberTypes.Field:
+                    var f = ( info as FieldInfo );
+                    f.SetValue( obj, value );
+                    break;
+                case MemberTypes.Property:
+                    var p = ( info as PropertyInfo );
+                    p.SetValue( obj, value, null );
+                    break;
+                case MemberTypes.Constructor:
+                case MemberTypes.Method:
+                case MemberTypes.Event:
+                case MemberTypes.TypeInfo:
+                case MemberTypes.Custom:
+                case MemberTypes.NestedType:
+                case MemberTypes.All:
+                default:
+                    break;
+            }
+        }
     }
+}
 
-    public static Dictionary<Type, Members> TypeMembers = new Dictionary<Type, Members>();
+public static class CAExtensions {
+
+    public static Dictionary<Type, List<MemberInfo>> TypeMembers = new Dictionary<Type, List<MemberInfo>>();
 
     private const string MISSING = "Component Loader: Unable to load {0} on {1}";
     private const string MISSING_ADD = "Component Loader: Unable to load {0}, adding it on {1}";
@@ -22,75 +88,56 @@ public static class MonoBehaviourExtensions {
     public static void LoadComponents( this MonoBehaviour behaviour ) {
         var bType = behaviour.GetType();
         var cType = typeof( ComponentAttribute );
-        List<FieldInfo> fields;
-        List<PropertyInfo> properties;
+        List<MemberInfo> members;
 
         if ( TypeMembers.ContainsKey( bType ) ) {
-            var members = TypeMembers[bType];
-            fields = members.Fields;
-            properties = members.Properties;
+            members = TypeMembers[bType];
         } else {
-            fields = behaviour.GetType().GetFields( BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic )
-                .Where( f => f.GetCustomAttributes( cType, true ).Length == 1 ).ToList();
-            properties = behaviour.GetType().GetProperties( BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic )
-                .Where( p => p.GetCustomAttributes( cType, true ).Length == 1 ).ToList();
-
-            fields.Sort( ( a, b ) => a.Name.CompareTo( b.Name ) );
-            properties.Sort( ( a, b ) => a.Name.CompareTo( b.Name ) );
-
-            TypeMembers.Add( bType, new Members() {
-                Fields = fields,
-                Properties = properties
-            } );
+            members = bType.GetMembers( BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic )
+                .Where( m => m.GetCustomAttributes( cType, true ).Length == 1 ).ToList();
+            members.OrderBy( m => m.MemberType ).ThenBy( m => m.Name );
+            TypeMembers.Add( bType, members );
         }
 
-        foreach ( var item in fields ) {
+        foreach ( var item in members ) {
             var attribute = item.GetCustomAttributes( cType, true )[0] as ComponentAttribute;
+            var memberType = item.GetMemberType();
 
-            var component = behaviour.GetComponent( item.FieldType );
+            var component = behaviour.GetComponent( memberType );
             if ( component == null ) {
                 if ( attribute.AddComponentIfMissing ) {
-                    Debug.LogWarningFormat( component, MISSING_ADD, item.FieldType.Name, behaviour.name );
-                    component = behaviour.gameObject.AddComponent( item.FieldType );
+                    Debug.LogWarningFormat( component, MISSING_ADD, memberType.Name, behaviour.name );
+                    component = behaviour.gameObject.AddComponent( memberType );
                 } else if ( attribute.DisableComponentOnError ) {
-                    Debug.LogErrorFormat( component, MISSING_ERROR, item.FieldType.Name, bType.Name, behaviour.name );
+                    Debug.LogErrorFormat( component, MISSING_ERROR, memberType.Name, bType.Name, behaviour.name );
                     behaviour.enabled = false;
                     return;
                 } else {
-                    Debug.LogWarningFormat( component, MISSING, item.FieldType.Name, behaviour.name );
+                    Debug.LogWarningFormat( component, MISSING, memberType.Name, behaviour.name );
                 }
-            }
 
-            if ( component != null ) {
-                item.SetValue( behaviour, component );
-            }
-        }
-
-        foreach ( var item in properties ) {
-            var attribute = item.GetCustomAttributes( cType, true )[0] as ComponentAttribute;
-
-            var component = behaviour.GetComponent( item.PropertyType );
-            if ( component == null ) {
-                if ( attribute.AddComponentIfMissing ) {
-                    Debug.LogWarningFormat( component, MISSING_ADD, item.PropertyType.Name, behaviour.name );
-                    component = behaviour.gameObject.AddComponent( item.PropertyType );
-                } else if ( attribute.DisableComponentOnError ) {
-                    Debug.LogErrorFormat( component, MISSING_ERROR, item.PropertyType.Name, bType.Name, behaviour.name );
-                    behaviour.enabled = false;
-                    return;
+                if ( component != null ) {
+                    if ( item.CanWrite() ) {
+                        item.SetValue( behaviour, component );
+                    } else {
+                        if ( attribute.DisableComponentOnError ) {
+                            Debug.LogErrorFormat( component, NO_WRITE_ERROR, item.Name, behaviour.name );
+                            behaviour.enabled = false;
+                        } else {
+                            Debug.LogErrorFormat( component, NO_WRITE, item.Name, behaviour.name );
+                        }
+                    }
                 }
-            }
-
-            if ( component != null ) {
-                if ( !item.CanWrite ) {
+            } else {
+                if ( item.CanWrite() ) {
+                    item.SetValue( behaviour, component );
+                } else {
                     if ( attribute.DisableComponentOnError ) {
                         Debug.LogErrorFormat( component, NO_WRITE_ERROR, item.Name, behaviour.name );
                         behaviour.enabled = false;
                     } else {
                         Debug.LogErrorFormat( component, NO_WRITE, item.Name, behaviour.name );
                     }
-                } else {
-                    item.SetValue( behaviour, component, null );
                 }
             }
         }
