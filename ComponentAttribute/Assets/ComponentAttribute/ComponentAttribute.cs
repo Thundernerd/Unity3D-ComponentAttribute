@@ -84,6 +84,7 @@ public static class CAExtensions {
     private const string MISSING_ERROR = "Component Loader: Unable to load {0}, disabling {1} on {2}";
 
     private const string MISSING_OBJECT = "Component Loader: Unable to find a GameObject named {0}";
+    private const string MISSING_OBJECT_COMPONENT = "Component Loader: Unable to load {0} on {1} for {2}";
     private const string MISSING_OBJECT_ADD = "Component Loader: Adding {0} on {1} for {2}";
     private const string MISSING_OBJECT_ERROR = "Component Loader: Unable to find a GameObject named {0}, disabling {1} on {2}";
     private const string MISSING_OBJECT_CERROR = "Component Loader: Unable to load {0} on {1}, disabling {2} on {3}";
@@ -142,7 +143,7 @@ public static class CAExtensions {
                         behaviour.enabled = false;
                         return;
                     } else {
-                        Debug.LogWarningFormat( bGameObject, MISSING, memberType.Name, gObj.name );
+                        Debug.LogWarningFormat( bGameObject, MISSING_OBJECT_COMPONENT, memberType.Name, gObj.name, bType.Name );
                         continue;
                     }
                 }
