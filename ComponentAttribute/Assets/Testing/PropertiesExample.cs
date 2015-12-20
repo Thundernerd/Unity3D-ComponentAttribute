@@ -3,6 +3,13 @@ using System.Collections;
 
 public class PropertiesExample : MonoBehaviour {
 
+    [Component( "Main Camera" )]
+    public Camera Camera1 { get; set; }
+    [Component( "Light" )]
+    public Camera Camera2 { get; set; }
+    [Component( "NotExisting GameObject" )]
+    public Camera Camera3 { get; set; }
+
     [Component]
     public BoxCollider2D Collider1 { get; set; }
     [Component( true, false )]

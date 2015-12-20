@@ -3,6 +3,13 @@ using System.Collections;
 
 public class FieldsExample : MonoBehaviour {
 
+    [Component( "Main Camera" )]
+    public Camera Camera1;
+    [Component( "Light" )]
+    public Camera Camera2;
+    [Component( "NotExisting GameObject" )]
+    public Camera Camera3;
+
     [Component]
     public BoxCollider2D Collider1;
     [Component( true, false )]

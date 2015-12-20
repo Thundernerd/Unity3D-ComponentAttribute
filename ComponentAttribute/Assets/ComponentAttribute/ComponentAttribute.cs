@@ -80,8 +80,14 @@ public static class CAExtensions {
     private static Dictionary<Type, List<MemberInfo>> TypeMembers = new Dictionary<Type, List<MemberInfo>>();
 
     private const string MISSING = "Component Loader: Unable to load {0} on {1}";
-    private const string MISSING_ADD = "Component Loader: Unable to load {0}, adding it on {1}";
+    private const string MISSING_ADD = "Component Loader: Adding {0} on {1}";
     private const string MISSING_ERROR = "Component Loader: Unable to load {0}, disabling {1} on {2}";
+
+    private const string MISSING_OBJECT = "Component Loader: Unable to find a GameObject named {0}";
+    private const string MISSING_OBJECT_ADD = "Component Loader: Adding {0} on {1} for {2}";
+    private const string MISSING_OBJECT_ERROR = "Component Loader: Unable to find a GameObject named {0}, disabling {1} on {2}";
+    private const string MISSING_OBJECT_CERROR = "Component Loader: Unable to load {0} on {1}, disabling {2} on {3}";
+
     private const string NO_WRITE = "Component Loader: Unable to write {0} on {1}";
     private const string NO_WRITE_ERROR = "Component Loader: Unable to write {0} on {1}, disabling it on {2}";
 
@@ -89,7 +95,7 @@ public static class CAExtensions {
         var bGameObject = behaviour.gameObject;
         var bType = behaviour.GetType();
         var cType = typeof( ComponentAttribute );
-        var mType = typeof( MonoBehaviour );
+        var mType = typeof( Component );
         List<MemberInfo> members;
 
         if ( TypeMembers.ContainsKey( bType ) ) {
@@ -97,7 +103,8 @@ public static class CAExtensions {
         } else {
             members = bType.GetMembers( BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic )
                 .Where( m =>
-                    m.GetMemberType().IsSubclassOf( mType )
+                    ( m.MemberType == MemberTypes.Field || m.MemberType == MemberTypes.Property )
+                    && m.GetMemberType().IsSubclassOf( mType )
                     && m.GetCustomAttributes( cType, true ).Length == 1 ).ToList();
 
             members.OrderBy( m => m.MemberType ).ThenBy( m => m.Name );
@@ -108,7 +115,39 @@ public static class CAExtensions {
             var attribute = item.GetCustomAttributes( cType, true )[0] as ComponentAttribute;
             var memberType = item.GetMemberType();
 
-            var component = behaviour.GetComponent( memberType );
+            Component component = null;
+
+            if ( string.IsNullOrEmpty( attribute.GameObject ) ) {
+                component = behaviour.GetComponent( memberType );
+            } else {
+                var gObj = GameObject.Find( attribute.GameObject );
+                if ( gObj != null ) {
+                    component = gObj.GetComponent( memberType );
+                } else {
+                    if ( attribute.DisableComponentOnError ) {
+                        Debug.LogErrorFormat( bGameObject, MISSING_OBJECT_ERROR, attribute.GameObject, bType.Name, behaviour.name );
+                        return;
+                    } else {
+                        Debug.LogWarningFormat( bGameObject, MISSING_OBJECT, attribute.GameObject );
+                        continue;
+                    }
+                }
+
+                if ( component == null ) {
+                    if ( attribute.AddComponentIfMissing ) {
+                        Debug.LogWarningFormat( bGameObject, MISSING_OBJECT_ADD, memberType.Name, gObj.name, behaviour.name );
+                        component = gObj.AddComponent( memberType );
+                    } else if ( attribute.DisableComponentOnError ) {
+                        Debug.LogErrorFormat( bGameObject, MISSING_OBJECT_CERROR, memberType.Name, gObj.name, bType.Name, behaviour.name );
+                        behaviour.enabled = false;
+                        return;
+                    } else {
+                        Debug.LogWarningFormat( bGameObject, MISSING, memberType.Name, gObj.name );
+                        continue;
+                    }
+                }
+            }
+
             if ( component == null ) {
                 if ( attribute.AddComponentIfMissing ) {
                     Debug.LogWarningFormat( bGameObject, MISSING_ADD, memberType.Name, behaviour.name );
@@ -154,14 +193,35 @@ sealed class ComponentAttribute : Attribute {
 
     public readonly bool AddComponentIfMissing;
     public readonly bool DisableComponentOnError;
+    public readonly string GameObject;
 
     public ComponentAttribute() {
         AddComponentIfMissing = false;
         DisableComponentOnError = false;
+        GameObject = "";
+    }
+
+    public ComponentAttribute( bool addComponentIfMissing ) {
+        AddComponentIfMissing = addComponentIfMissing;
+        DisableComponentOnError = false;
+        GameObject = "";
     }
 
     public ComponentAttribute( bool addComponentIfMissing, bool disableComponentOnError ) {
         AddComponentIfMissing = addComponentIfMissing;
         DisableComponentOnError = disableComponentOnError;
+        GameObject = "";
+    }
+
+    public ComponentAttribute( string gameObject ) {
+        AddComponentIfMissing = false;
+        DisableComponentOnError = false;
+        GameObject = gameObject;
+    }
+
+    public ComponentAttribute( string gameObject, bool addComponentIfMissing, bool disableComponentOnError ) {
+        AddComponentIfMissing = addComponentIfMissing;
+        DisableComponentOnError = disableComponentOnError;
+        GameObject = gameObject;
     }
 }
