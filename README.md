@@ -2,21 +2,27 @@
 An attribute that let's you auto-load components
 
 * Works on fields and properties
-* Load components on awake, start, or enable
+* Load components on awake, start, or enable, or whenever else you feel like it
+* Get component from other GameObjects (optional)
+* Add component if missing (optional)
 * Disable component on error (optional)
 
 *Credits go to [@ChevyRay](https://twitter.com/ChevyRay) for inspiring me to make this by this [tweet](https://twitter.com/ChevyRay/status/665673463856664576)*
 
-
 The way of this.LoadComponents()
---------------------------------
-Call *this.LoadComponents()* In the Start() or Awake() (or wherever you want to put it, really).
+-------------------------------
+The only thing you have to do is add the component attribute to fields and/or properties that you want and call *this.LoadComponents();* in the awake, start, on enable, or any other place for that matter and you are good to go.
 
-The only thing left to do is add the component attribute to fields or properties and you are ready to go.
+Pros:
+* You don't have to do all those GetComponent calls to get the components you need
+* The more components you want, the less you have to do
 
-![Extension](http://puu.sh/lmyB4/2b3e79b708.png)
+Cons:
+* You have to write *[Component]* on top the of the Components you want this to work on
+* You also have to call *this.LoadComponents();*
 
-The downsides of using this way are (in my opinion)
+### Fields Example
+![Imgur](http://i.imgur.com/BSnZNWt.png)
 
-1. You have to call this.LoadComponents, which you might forget.
-2. I forget things fast, which makes point one worse.
+### Properties Example
+![Imgur](http://i.imgur.com/P3HrXcB.png)
