@@ -92,6 +92,15 @@ public static class CAExtensions {
     private const string NO_WRITE = "Component Loader: Unable to write {0} on {1}";
     private const string NO_WRITE_ERROR = "Component Loader: Unable to write {0} on {1}, disabling it on {2}";
 
+    static bool HasAttribute<T>(this MemberInfo m) where T : Attribute
+    {
+#if UNITY_WSA && !UNITY_EDITOR
+        return  m.CustomAttributes.Any(o => o.AttributeType.Equals(typeof (T)));
+#else
+        return Attribute.IsDefined(m, typeof(T));
+#endif
+    }
+
     public static void LoadComponents( this MonoBehaviour behaviour ) {
         var bGameObject = behaviour.gameObject;
         var bType = behaviour.GetType();
@@ -102,14 +111,19 @@ public static class CAExtensions {
         if ( TypeMembers.ContainsKey( bType ) ) {
             members = TypeMembers[bType];
         } else {
-            members = bType.GetMembers( BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic )
-                .Where( m =>
-                    ( m.MemberType == MemberTypes.Field || m.MemberType == MemberTypes.Property )
-                    && m.GetMemberType().IsSubclassOf( mType )
-                    && m.GetCustomAttributes( cType, true ).Length == 1 ).ToList();
+#if UNITY_WSA && !UNITY_EDITOR
+            var fields = bType.GetTypeInfo().DeclaredFields.Where(o => o.HasAttribute<ComponentAttribute>()).ToArray();
+            var props = bType.GetTypeInfo().DeclaredProperties.Where(o => o.HasAttribute<ComponentAttribute>()).ToArray();
+#else
+            var fields = bType.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Where(o => o.HasAttribute<ComponentAttribute>()).ToArray();
+            var props = bType.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Where(o => o.HasAttribute<ComponentAttribute>()).ToArray();
+#endif
 
-            members.OrderBy( m => m.MemberType ).ThenBy( m => m.Name );
-            TypeMembers.Add( bType, members );
+            members = new List<MemberInfo>();
+            members.AddRange(fields);
+            members.AddRange(props);
+
+            TypeMembers.Add(bType, members);           
         }
 
         foreach ( var item in members ) {
